@@ -1,0 +1,694 @@
+/* TUAZ - feuille de style unique, extraite telle quelle du mono-fichier. */
+    :root{
+        --parch:#e8d8b0; --parch2:#d4bf8e; --ink:#2a1f14; --wood:#5a4326;
+        --gold:#f0b840; --hp:#d84848; --xp:#58c0e8; --evil:#c84880;
+    }
+    *{margin:0;padding:0;box-sizing:border-box;}
+    html,body{width:100%;height:100%;background:#0c0e0a;overflow:hidden;}
+    body{font-family:"Courier New",monospace;font-weight:bold;color:var(--parch);
+        -webkit-user-select:none;user-select:none;}
+    #wrap{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;}
+    canvas{image-rendering:pixelated;image-rendering:crisp-edges;}
+
+    #ui{position:absolute;pointer-events:none;font-size:14px;
+        text-shadow:1px 1px 0 #000,2px 2px 0 rgba(0,0,0,.5);}
+    .bar{position:relative;height:14px;background:#1a140c;border:3px solid var(--wood);}
+    .bar>div{position:absolute;inset:0;transform-origin:left;}
+    #tl{position:absolute;bottom:10px;left:10px;width:440px;
+        display:flex;flex-direction:column-reverse;align-items:flex-start;gap:6px;}
+    /* ---- LE BANDEAU D'EQUIPE ----
+       Les compagnons qui nous suivent, empiles au-dessus de notre carte. Le
+       perso que l'on joue (la carte du bas) porte un liseret. */
+    #team{display:flex;flex-direction:column-reverse;align-items:flex-start;gap:4px;}
+    .tmcard{display:flex;gap:6px;align-items:center;
+        background:rgba(18,16,11,0.7);border:2px solid var(--wood);padding:3px 5px;}
+    .tmface{width:30px;height:36px;image-rendering:pixelated;
+        background:#241c12;border:2px solid var(--wood);}
+    .tminfo{display:flex;flex-direction:column;gap:2px;width:150px;}
+    .tmname{font-size:10px;color:#e8d0a0;letter-spacing:1px;}
+    .tmbar{height:6px;}
+    .tmhp>.bfill{background:var(--hp);}
+    .tmst>.bfill{background:linear-gradient(#e0c060,#a07820);}
+    /* le liseret du perso joue */
+    #pcard>#pface{box-shadow:0 0 0 2px var(--gold);}
+    #hpbar>.bfill{background:var(--hp);}
+    /* les couches d'une barre : fond sombre (le vide), le remplissage par
+       dessus, le texte au sommet - et sous le remplissage, la bande de moral
+       qui montre la reserve perdue (gris) ou gagnee (vert). */
+    .bar>.mband{z-index:3;left:0;width:0;}
+    .bar>.bfill{z-index:2;}
+    #hptxt,#sttxt{z-index:4;}
+    #hptxt{position:absolute;inset:0;text-align:center;font-size:11px;line-height:9px;color:#fff;}
+    #jbox{position:absolute;right:10px;bottom:10px;width:250px;
+        background:rgba(18,16,11,0.82);border:3px solid var(--wood);
+        pointer-events:auto;display:flex;flex-direction:column;}
+    #pcard{display:flex;gap:7px;align-items:flex-start;position:relative;}
+    #wcard{display:none;flex-direction:column;align-items:center;gap:1px;
+        background:rgba(18,16,11,0.78);border:2px solid var(--wood);
+        padding:3px 5px;min-width:104px;}
+    #wcardic{width:96px;height:42px;}
+    #wcardn{font-size:7px;letter-spacing:0;color:#c8bb98;}
+    #wcardr{position:relative;display:flex;align-items:center;gap:6px;
+        padding:1px 4px;width:96px;justify-content:center;overflow:hidden;}
+    #wcardf{position:absolute;left:0;top:0;bottom:0;width:0;
+        background:rgba(240,184,64,0.28);transition:none;}
+    #wcarda{position:relative;font-size:11px;color:#f0d890;}
+    #wcarda b{color:#fff;}
+    #wcarda.low{color:#d86a4a;}
+    /* une balle pour le coup par coup, trois pour la rafale, cinq pour l'auto */
+    #wcardm{position:relative;display:flex;gap:2px;align-items:center;}
+    #wcardm i{display:block;width:2px;height:7px;background:#e0c070;
+        border-radius:1px 1px 0 0;}
+    /* les deux acces rapides encadrent l'arme : le soin [A] a gauche, l'arme
+       de jet [E] a droite, chacun avec ce qu'il en reste dans le sac */
+    .qcard{display:none;position:relative;width:40px;height:40px;
+        background:rgba(18,16,11,0.78);border:2px solid var(--wood);
+        align-self:center;flex:none;}
+    #qcardA{margin-left:8px;}
+    #qcardE{margin-left:4px;}
+    .qcard .qcic{position:absolute;left:2px;top:2px;width:32px;height:32px;}
+    .qcard .qkey{position:absolute;left:1px;top:0;font-size:7px;color:#c8a860;}
+    .qcard .qnum{position:absolute;right:1px;bottom:0;font-size:9px;
+        line-height:1;color:#f0e0b0;text-shadow:0 1px 0 #14100a,
+        1px 0 0 #14100a,-1px 0 0 #14100a,0 -1px 0 #14100a;}
+    .qcard.qempty .qnum{color:#a05a40;}
+    #pface{width:44px;height:52px;image-rendering:pixelated;
+        background:#241c12;border:2px solid var(--wood);}
+    #tface{width:44px;height:52px;image-rendering:pixelated;
+        background:#241c12;border:2px solid #7a5c2e;}
+    #pinfo{display:flex;flex-direction:column;gap:3px;width:150px;flex:none;}
+    #tcard{display:none;gap:7px;align-items:flex-start;margin-left:12px;}
+    /* ---- LES CONSIGNES DE GROUPE ----
+       Grille 3x2 posee a droite des fiches : suivre/pas suivre, tirer/pas
+       tirer, a la base/planque. Cachee tant qu'on n'a personne dehors. */
+    #gcmd{display:none;grid-template-columns:repeat(3,auto);grid-auto-rows:1fr;
+        gap:4px;margin-left:14px;align-self:flex-start;pointer-events:auto;}
+    .gcbtn{font-family:inherit;font-weight:bold;font-size:9px;letter-spacing:1px;
+        padding:6px 8px;min-width:70px;color:#c8bb98;cursor:pointer;
+        background:rgba(18,16,11,0.72);border:2px solid var(--wood);
+        text-shadow:1px 1px 0 #000;}
+    .gcbtn:hover{color:#e8d8b0;}
+    .gcbtn.on{background:rgba(60,44,22,0.78);border-color:var(--gold);color:#f0d890;}
+    .gcbtn.dis{color:#4a422f;border-color:#3a3020;cursor:default;
+        background:rgba(18,16,11,0.4);}
+    #tinfo{display:flex;flex-direction:column;gap:3px;width:150px;flex:none;}
+    #tname{font-size:11px;color:#e8d0a0;letter-spacing:1px;
+        text-shadow:0 1px 0 #2a2016;}
+    #thpbar>div:first-child{background:var(--hp);}
+    #thptxt{position:absolute;inset:0;text-align:center;font-size:11px;
+        line-height:9px;color:#fff;}
+    #tstbar>div:first-child{background:linear-gradient(#e0c060,#a07820);}
+    #tsttxt{position:absolute;inset:0;text-align:center;font-size:11px;
+        line-height:9px;color:#fff;}
+    #pname{font-size:11px;color:#f0e0b0;letter-spacing:1px;
+        text-shadow:0 1px 0 #2a2016;}
+    #stbar>.bfill{background:linear-gradient(#e0c060,#a07820);}
+    #sttxt{position:absolute;inset:0;text-align:center;font-size:11px;
+        line-height:9px;color:#fff;}
+    /* ---- LE PANNEAU HAUT-DROITE : LA BASE ET LE MORAL ----
+       Un carre qui dit quel toit on a - au depart la maison et son adresse -
+       et sous lui la jauge de moral. Bleue quand tout va, elle vire au rouge
+       sous cinquante : le seuil ou le moral se met a ronger la vie et
+       l'endurance. */
+    #mpanel{position:absolute;top:10px;right:10px;width:184px;
+        display:flex;flex-direction:column;gap:5px;}
+    #bcard{background:rgba(18,16,11,0.82);border:3px solid var(--wood);
+        padding:6px 8px;display:flex;align-items:center;gap:8px;}
+    #bcic{width:44px;height:44px;flex:none;image-rendering:pixelated;
+        background:#241c12;border:2px solid var(--wood);}
+    #bctxt{min-width:0;}
+    #bcadr{font-size:11px;color:#f0e0b0;letter-spacing:1px;
+        text-shadow:0 1px 0 #2a2016;}
+    #bcnm{font-size:9px;color:#a8956a;letter-spacing:1px;margin-top:1px;}
+    .mobar{height:16px;border:3px solid var(--wood);}
+    /* la jauge de moral est centree sur zero : un trait marque le neutre. */
+    #mobar::after{content:"";position:absolute;left:50%;top:0;bottom:0;width:1px;
+        margin-left:-1px;background:rgba(240,224,176,0.55);z-index:2;}
+    #motxt{position:absolute;inset:0;text-align:center;font-size:10px;
+        line-height:10px;color:#fff;letter-spacing:1px;z-index:3;
+        text-shadow:0 0 2px #000,0 0 2px #000;}
+    /* le petit nombre qui monte : "top" au-dessus d'une barre (moral),
+       "side" a DROITE de la fiche du personnage (vie, endurance) */
+    .statpop{position:absolute;z-index:5;
+        font:bold 13px "Courier New",monospace;white-space:nowrap;
+        pointer-events:none;text-shadow:0 0 3px #000,0 1px 0 #000;}
+    .statpop.top{left:50%;bottom:100%;animation:statrise 0.85s ease-out forwards;}
+    .statpop.side{left:100%;bottom:2px;margin-left:10px;
+        animation:statriseR 0.85s ease-out forwards;}
+    @keyframes statrise{
+        from{opacity:1;transform:translate(-50%,-2px);}
+        to{opacity:0;transform:translate(-50%,-24px);}}
+    @keyframes statriseR{
+        from{opacity:1;transform:translateY(0);}
+        to{opacity:0;transform:translateY(-24px);}}
+    /* la liste des actions offertes sous [F], au-dessus du bas de l'ecran */
+    #achoice{position:absolute;left:50%;bottom:104px;transform:translateX(-50%);
+        display:none;background:rgba(18,16,11,0.80);border:2px solid var(--wood);
+        padding:4px 8px;pointer-events:none;text-align:left;}
+    /* la boite laisse passer les clics, les lignes les attrapent : on peut
+       tirer a travers le cadre mais pas a travers un choix */
+    #achoice .arow{font-size:9px;letter-spacing:0;color:#8a7f66;
+        line-height:1.7;white-space:nowrap;pointer-events:auto;cursor:pointer;}
+    #achoice .arow:hover{color:#d8c890;}
+    #achoice .arow.on{color:#f0d890;}
+    #achoice .arow b{color:#f0e0b0;}
+    #achoice .ahint{font-size:7px;color:#6a5c40;letter-spacing:1px;
+        margin-top:2px;}
+    /* ---- LA FENETRE DE FOUILLE ----
+       La meme pour un corps et pour un batiment : a gauche la vignette de ce
+       qu'on fouille, a droite ce qu'on y trouve, ligne a ligne. Pour un
+       batiment les lignes arrivent au fur et a mesure que les pieces se
+       terminent, la fouille continuant pendant qu'on choisit. */
+    #lpan{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+        width:420px;max-height:92vh;box-sizing:border-box;
+        background:rgba(20,17,11,0.95);border:3px solid var(--wood);
+        display:none;pointer-events:auto;flex-direction:column;}
+    #lhead{display:flex;gap:9px;align-items:center;padding:6px 8px;
+        background:rgba(60,44,22,0.75);border-bottom:2px solid var(--wood);}
+    #lface{width:46px;height:54px;image-rendering:pixelated;
+        background:#241c12;border:2px solid var(--wood);flex:none;}
+    #lttl{display:flex;flex-direction:column;gap:2px;}
+    #lname{font-size:11px;letter-spacing:1px;color:#f0e0b0;}
+    #lkind{font-size:8px;letter-spacing:1px;color:#a8956a;}
+    #lclose{margin-left:auto;font-size:8px;color:#7a6a48;padding-right:2px;}
+    #lprog{height:3px;background:#2a2016;}
+    #lprog>div{height:3px;width:0;background:#c8a860;}
+    #lbody{padding:6px;overflow-y:auto;max-height:52vh;
+        display:flex;flex-direction:column;gap:3px;}
+    .lrow{display:flex;gap:7px;align-items:center;padding:3px 5px;
+        background:rgba(40,32,20,0.55);border:2px solid transparent;
+        cursor:pointer;text-align:left;font-family:inherit;}
+    .lrow:hover{border-color:var(--wood);background:rgba(58,46,26,0.75);}
+    .lrow canvas{width:22px;height:22px;image-rendering:pixelated;flex:none;}
+    .lrow .lnm{font-size:9px;color:#e8d8b0;letter-spacing:0;}
+    .lrow .lds{font-size:7px;color:#8a7f66;letter-spacing:0;}
+    .lrow .lq{margin-left:auto;font-size:10px;color:#f0d890;padding-left:6px;}
+    .lwait{font-size:8px;color:#7a6a48;letter-spacing:1px;padding:5px 4px;}
+    .lnone{font-size:9px;color:#6a5c40;letter-spacing:1px;padding:8px 4px;}
+    #lfoot{display:flex;gap:6px;align-items:center;padding:5px 7px;
+        border-top:2px solid var(--wood);background:rgba(40,30,16,0.6);}
+    #lfoot button{font-family:inherit;font-size:8px;letter-spacing:1px;
+        padding:5px 10px;background:none;border:2px solid var(--wood);
+        color:#f0d890;cursor:pointer;}
+    #lfoot button:hover{background:rgba(80,60,28,0.6);}
+    #lload{margin-left:auto;font-size:8px;color:#a8956a;letter-spacing:1px;}
+    #lload.lfull{color:#d86a4a;}
+    /* le fantome qui suit la souris quand on tire une case hors du panneau */
+    .trval{flex:1;font-size:10px;letter-spacing:1px;color:#f0d890;min-width:150px;}
+    #trvalR{text-align:right;}
+    .slot.itrpick{border-color:#f0d890;background:rgba(120,96,40,0.35);}
+    /* ---- L'ONGLET DE LA BASE ---- */
+    #bfacade{width:240px;height:200px;image-rendering:pixelated;
+        background:rgba(10,8,6,0.6);border:2px solid var(--wood);}
+    .bnm{font-size:10px;color:#f0d890;letter-spacing:1px;margin:7px 0 3px;}
+    .bres{font-size:9px;color:#a8956a;line-height:1.9;}
+    .bres b{color:#f0d890;}
+    .bres .manque{color:#d86a4a;}
+    .bhint{font-size:9px;color:#8a7f66;margin-top:8px;line-height:1.6;}
+    #deppan{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+        width:420px;max-height:80vh;overflow-y:auto;box-sizing:border-box;
+        background:rgba(20,17,11,0.96);border:3px solid var(--wood);
+        display:none;pointer-events:auto;z-index:40;}
+    #deplist{display:flex;flex-direction:column;gap:4px;padding:8px;}
+    .dprow{display:flex;align-items:center;gap:8px;padding:6px 9px;cursor:pointer;
+        background:rgba(60,44,22,0.28);border:2px solid rgba(90,70,40,0.6);}
+    .dprow:hover{border-color:var(--wood);}
+    .dprow.on{border-color:#7aa06a;background:rgba(90,70,40,0.45);}
+    .dprow.no{opacity:0.45;cursor:default;}
+    .dpn{font-size:10px;color:#f0d890;min-width:150px;letter-spacing:1px;}
+    .dpi{font-size:9px;color:#a8956a;}
+    .dpnote{font-size:9px;color:#c8a860;padding:2px 4px 5px;line-height:1.5;letter-spacing:0.5px;}
+    #depgo{font-family:inherit;font-size:10px;letter-spacing:2px;padding:6px 22px;
+        margin:0 auto;background:rgba(60,44,22,0.8);border:2px solid var(--wood);
+        color:#f0d890;cursor:pointer;}
+    #depgo:hover{border-color:#7aa06a;color:#bfe0a8;}
+    #mlist{display:flex;flex-direction:column;gap:5px;padding:4px 2px;}
+    .mrow{display:flex;align-items:center;gap:8px;padding:6px 9px;
+        background:rgba(60,44,22,0.28);border:2px solid rgba(90,70,40,0.6);}
+    .mnm{font-size:10px;color:#f0d890;min-width:150px;letter-spacing:1px;}
+    .mst{font-size:9px;color:#a8956a;min-width:130px;}
+    .mgo{font-family:inherit;font-size:8px;letter-spacing:1px;padding:4px 7px;
+        background:rgba(60,44,22,0.8);border:2px solid var(--wood);
+        color:#f0d890;cursor:pointer;}
+    .mgo:hover{border-color:#7aa06a;color:#bfe0a8;}
+    /* mission fermee : elle se voit, elle ne se clique pas */
+    .mgo.mno{opacity:0.34;cursor:default;color:#9a8e74;}
+    .mgo.mno:hover{border-color:var(--wood);color:#9a8e74;}
+    /* le rappel n'envoie pas, il ramene : on le lit d'un coup d'oeil */
+    .mgo.mrec{border-color:#8a5a3a;color:#e8b88a;}
+    .mgo.mrec:hover{border-color:#c08050;color:#ffd8b0;}
+    .mgo.mrec.mno,.mgo.mrec.mno:hover{border-color:var(--wood);color:#9a8e74;}
+    .mnone{font-size:10px;color:#8a7f66;padding:14px 8px;line-height:1.7;}
+    #blist{display:flex;flex-wrap:wrap;gap:4px;}
+    .brow{display:flex;flex-direction:column;gap:2px;padding:5px 8px;cursor:pointer;
+        background:rgba(60,44,22,0.28);border:2px solid rgba(90,70,40,0.6);}
+    .brow:hover{border-color:var(--wood);background:rgba(90,70,40,0.4);}
+    .brow.bok{border-color:#7aa06a;cursor:default;}
+    .bn{font-size:9px;color:#f0d890;letter-spacing:1px;}
+    .bc{font-size:8px;color:#a8956a;}
+    .brow.bok .bc{color:#bfe0a8;}
+    /* ---- CE QU'ON ATTIRE ----
+       Une jauge, parce que le bruit est une chose qui monte et non un
+       chiffre qu'on lit. */
+    .bjauge{margin-top:7px;padding:6px 7px;background:rgba(30,22,12,0.5);
+        border:2px solid rgba(90,70,40,0.6);}
+    .jlab{font-size:8px;color:#a8956a;letter-spacing:1px;}
+    .jlab b{color:#f0d890;font-weight:normal;}
+    .jbar{height:7px;margin:4px 0 3px;background:rgba(0,0,0,0.45);
+        border:1px solid rgba(90,70,40,0.7);}
+    .jbar i{display:block;height:100%;background:#7aa06a;}
+    .jbar i.jamb{background:#d0a648;}
+    .jbar i.jred{background:#c8604c;}
+    .jsub{font-size:8px;color:#8a7f66;}
+    /* ---- L'ONGLET DU GROUPE ---- */
+    #grplist{display:flex;flex-direction:column;gap:5px;padding:4px 2px;}
+    .grow{display:flex;align-items:center;gap:9px;padding:6px 9px;
+        background:rgba(60,44,22,0.28);border:2px solid rgba(90,70,40,0.6);}
+    .grow:hover{border-color:var(--wood);background:rgba(90,70,40,0.4);}
+    .gnm{font-size:10px;color:#f0d890;min-width:150px;letter-spacing:1px;}
+    .gjb{font-size:9px;color:#a8956a;min-width:120px;}
+    .grk{font-size:9px;color:#bfe0a8;min-width:110px;}
+    .gst{font-size:9px;color:#8a7f66;margin-left:auto;letter-spacing:1px;}
+    .gbar{height:4px;background:rgba(20,17,11,0.7);width:90px;
+        border:1px solid rgba(90,70,40,0.7);}
+    .gbar i{display:block;height:100%;background:#7aa06a;}
+    .gnone{font-size:10px;color:#8a7f66;padding:14px 8px;line-height:1.6;}
+    /* le fantome du glisser : la vignette de ce qu'on tient, et non son nom.
+       Le cadre passe au vert des que la place survolee l'accepte. */
+    #idrag{position:fixed;z-index:60;pointer-events:none;display:none;
+        padding:3px;background:rgba(20,17,11,0.92);border:2px solid var(--wood);
+        transform:translate(-50%,-50%);line-height:0;}
+    #idrag canvas{width:36px;height:36px;image-rendering:pixelated;}
+    #idrag canvas[width="192"]{width:56px;height:25px;}
+    #idrag.iout{border-color:#7aa06a;background:rgba(30,44,24,0.92);}
+    #ipan{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+        width:648px;max-height:94vh;overflow-y:auto;box-sizing:border-box;
+        background:rgba(20,17,11,0.94);border:3px solid var(--wood);
+        display:none;pointer-events:auto;}
+    .itabs{display:flex;gap:2px;background:rgba(60,44,22,0.75);padding:3px 4px;
+        border-bottom:2px solid var(--wood);align-items:center;}
+    .itab{font-family:inherit;font-size:9px;letter-spacing:1px;padding:5px 12px;
+        background:none;border:2px solid transparent;color:#8a7f66;cursor:pointer;}
+    .itab.on{background:rgba(20,17,11,0.9);border-color:var(--wood);color:#f0d890;}
+    .itab.off{color:#4a422f;cursor:default;}
+    .iowner{margin-left:14px;font-size:9px;letter-spacing:1px;color:#e8c878;}
+    .ihint{margin-left:auto;font-size:8px;color:#7a6a48;padding-right:4px;}
+    .ipage{display:flex;gap:12px;padding:12px;}
+    .icol{display:flex;flex-direction:column;gap:5px;}
+    .icol.iright{flex:1;min-width:0;}
+    .icoltitle{font-size:8px;letter-spacing:1px;color:#c8a860;margin-top:2px;}
+    .ichar{display:flex;flex-direction:row-reverse;gap:12px;align-items:flex-start;
+        justify-content:flex-end;}
+    #pbody{image-rendering:pixelated;background:rgba(40,32,20,0.55);
+        border:2px solid #4a3a20;}
+    .islots{display:flex;flex-direction:column;gap:6px;}
+    .grid4{display:grid;grid-template-columns:repeat(2,auto);gap:6px;}
+    .grid2{display:grid;grid-template-columns:repeat(2,auto);gap:6px;}
+    .eqsub{font-size:8px;color:#a8956a;letter-spacing:1px;margin:9px 0 4px;}
+    .eqrow{display:flex;gap:6px;margin-bottom:9px;}
+    .eqlink{color:#f0d890;cursor:pointer;text-decoration:underline;}
+    .eqlink:hover{color:#fff;}
+    .grow.gon{border-color:var(--gold);background:rgba(90,70,40,0.5);}
+    .grow{cursor:pointer;}
+    /* --- l'ecran d'attente et ses coupures --- */
+    .loadpan{min-width:520px;max-width:560px;}
+    #cutbox{margin:14px 0 12px;}
+    .cut{background:#e8e0cc;color:#2a2620;padding:15px 17px 13px;
+        border:1px solid #b8ac90;text-align:left;
+        box-shadow:2px 3px 0 rgba(0,0,0,0.35);}
+    .cuthead{display:flex;justify-content:space-between;font-size:9px;
+        letter-spacing:2px;text-transform:uppercase;color:#6a6252;
+        border-bottom:1px solid #2a2620;padding-bottom:5px;margin-bottom:9px;}
+    .cuttitle{font-size:15px;line-height:1.25;letter-spacing:0.5px;
+        font-weight:700;margin-bottom:8px;color:#1a1610;}
+    .cutbody{font-size:11px;line-height:1.65;color:#3a352c;
+        text-align:justify;column-count:2;column-gap:14px;}
+    .cutfoot{margin-top:9px;padding-top:5px;border-top:1px solid #b8ac90;
+        font-size:8px;letter-spacing:2px;color:#8a8270;text-align:right;}
+    .loadbar{height:5px;background:rgba(20,17,11,0.7);
+        border:1px solid rgba(90,70,40,0.8);margin:0 0 6px;}
+    .loadbar i{display:block;height:100%;background:var(--gold);width:0%;}
+    /* --- les sept visages du document --- */
+    .cut.src-journal .cutbody{column-count:2;column-gap:14px;}
+    .cut.src-affiche{background:#dcd6c0;}
+    .cut.src-affiche .cuttitle{text-align:center;letter-spacing:1px;}
+    .cut.src-affiche .cutbody{column-count:1;text-align:center;
+        font-size:11.5px;line-height:1.8;}
+    .cut.src-lettre,.cut.src-intime{background:#eee8d6;}
+    .cut.src-lettre .cutbody,.cut.src-intime .cutbody{column-count:1;
+        font-style:italic;line-height:1.85;text-align:left;}
+    .cut.src-lettre .cuttitle,.cut.src-intime .cuttitle{font-size:13px;
+        font-style:italic;font-weight:400;}
+    .cut.src-intime{background:#e6e4d2;
+        background-image:repeating-linear-gradient(transparent,transparent 21px,
+            rgba(90,110,140,0.28) 21px,rgba(90,110,140,0.28) 22px);}
+    .cut.src-note{background:#e4e0cc;}
+    .cut.src-note .cutbody{column-count:1;line-height:1.75;}
+    .cut.src-note .cuttitle{font-size:12px;letter-spacing:1px;}
+    .cut.src-mail{background:#e0e4e6;}
+    .cut.src-mail .cuthead{font-family:ui-monospace,Menlo,Consolas,monospace;
+        text-transform:none;letter-spacing:0;}
+    .cut.src-mail .cutbody{column-count:1;line-height:1.75;}
+    .cut.src-mail .cuttitle{font-size:12px;letter-spacing:0.5px;}
+    .cut.src-texto{background:#20242a;border-color:#3a4048;}
+    .cut.src-texto .cuthead{color:#8a94a0;border-bottom-color:#3a4048;}
+    .cut.src-texto .cuttitle{color:#dce4ec;font-size:12px;letter-spacing:1px;}
+    .cut.src-texto .cutfoot{color:#6a7480;border-top-color:#3a4048;}
+    .sms{display:flex;flex-direction:column;gap:5px;min-height:96px;}
+    .sms .sms{display:block;}
+    .sms>div{max-width:74%;padding:6px 10px;font-size:11px;line-height:1.5;
+        border-radius:11px;}
+    .sms>div.you{align-self:flex-start;background:#333a42;color:#e0e6ec;
+        border-bottom-left-radius:3px;}
+    .sms>div.me{align-self:flex-end;background:#3a6a9a;color:#f0f4f8;
+        border-bottom-right-radius:3px;}
+    .cutnav{display:flex;align-items:center;justify-content:center;gap:14px;
+        margin:0 0 9px;}
+    .cutnav button{font-family:inherit;font-size:13px;line-height:1;
+        padding:3px 11px;background:rgba(60,44,22,0.8);
+        border:2px solid var(--wood);color:#f0d890;cursor:pointer;}
+    .cutnav button:hover{border-color:#7aa06a;color:#bfe0a8;}
+    #cutmsg{font-size:10px;color:#8a7f66;letter-spacing:1px;min-width:190px;
+        text-align:center;}
+    .cutgo{font-family:inherit;font-size:10px;letter-spacing:2px;
+        padding:5px 15px;background:rgba(60,44,22,0.9);
+        border:2px solid var(--gold);color:#f0d890;cursor:pointer;}
+    .clanrow{display:flex;align-items:center;gap:7px;margin-bottom:11px;
+        padding-bottom:10px;border-bottom:2px solid rgba(90,70,40,0.5);}
+    .clanlbl{font-size:9px;color:#a8956a;letter-spacing:1px;margin-right:3px;}
+    .clansw{width:17px;height:17px;border:2px solid rgba(90,70,40,0.8);
+        cursor:pointer;display:inline-block;}
+    .clansw:hover{border-color:#bfe0a8;}
+    .clansw.on{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold);}
+    .clannm{font-size:9px;color:#f0d890;letter-spacing:1px;margin-left:4px;}
+    /* LA GRILLE EST UNE VRAIE GRILLE. Elle etait un tapis de cases carrees
+       identiques ; les objets y debordent maintenant sur leurs voisines, et
+       chaque case porte son rang et son etendue en clair - l'auto-placement
+       du navigateur ne suit pas notre modele, il faut le lui dicter.
+       --gn est le nombre de colonnes, pose au peint : une poche en a deux ou
+       trois, un sac cinq. */
+    .gridbag{display:grid;grid-template-columns:repeat(var(--gn,5),var(--gc,34px));
+        grid-auto-rows:var(--gc,34px);gap:6px;justify-content:start;}
+    .gridbag .slot{width:auto;height:auto;}
+    .slot{width:34px;height:34px;border:2px solid #5a4a2a;
+        background:rgba(50,40,24,0.5);position:relative;}
+    .slot::after{content:attr(data-l);position:absolute;left:0;right:0;bottom:-11px;
+        text-align:center;font-size:7px;color:#7a6a48;letter-spacing:0;}
+    .islots .slot{margin-bottom:9px;}
+    .grid2 .slot{margin-bottom:9px;}
+    .inote{font-size:8px;color:#7a6a48;line-height:1.6;max-width:150px;}
+    .wpick{display:none;flex-direction:column;gap:2px;margin-top:12px;
+        max-height:150px;overflow-y:auto;width:150px;}
+    .wpick button{font-family:inherit;font-size:8px;letter-spacing:0;
+        text-align:left;padding:3px 5px;background:rgba(50,40,24,0.5);
+        border:2px solid #4a3a20;color:#c8bb98;cursor:pointer;}
+    .wpick button:hover{border-color:var(--gold);color:#f0d890;}
+    .slot.wfull{border-color:var(--gold);}
+    .slot.whand{border-color:#f0e0b0;background:rgba(90,70,30,0.6);}
+    #wslots{grid-template-columns:repeat(2,auto);}
+    #wslots .slot{width:102px;height:52px;}
+    /* la vignette est dessinee en 192x84 et rendue en 96x42 : le trait reste
+       fin sur les ecrans denses, et servira telle quelle au bandeau */
+    .slot .wic{position:absolute;left:3px;top:2px;width:96px;height:42px;}
+    .slot .wtag{position:absolute;left:0;right:0;bottom:1px;text-align:center;
+        font-size:5px;line-height:1.1;color:#f0d890;
+        text-shadow:0 1px 0 #14100a,0 -1px 0 #14100a;}
+    /* la vignette d'objet est carree : dessinee en 96 et rendue en 28 dans une
+       case de contenu, en 40 dans l'emplacement de sac */
+    .slot .iic{position:absolute;left:1px;top:1px;width:28px;height:28px;}
+    #bsl{width:52px;height:52px;}
+    #bsl .iic{left:5px;top:2px;width:40px;height:40px;}
+    /* le nombre, en bas a droite de la case : une case ne porte qu'une sorte,
+       dix exemplaires au plus */
+    .slot .iq{position:absolute;right:1px;bottom:0;font-size:8px;line-height:1;
+        color:#f0e0b0;text-shadow:0 1px 0 #14100a,1px 0 0 #14100a,
+        -1px 0 0 #14100a,0 -1px 0 #14100a;}
+    .slot.ifull{border-color:#8a7a46;}
+    /* UNE CASE QUI PORTE UNE CEINTURE SE VOIT. Sans marque on ne saurait pas
+       laquelle des trois cases de 5,56 tient cinq boites et lesquelles une :
+       le lisere vert et le nombre sur deux termes le disent d'un coup. */
+    .slot.ibelt{border-color:#7ea060;}
+    .slot .iq.ibq{color:#bfe0a0;}
+    .slot.ipickon{border-color:var(--gold);background:rgba(90,70,30,0.5);}
+    .ipick{display:none;flex-direction:column;gap:2px;margin-top:6px;
+        max-height:186px;overflow-y:auto;}
+    .ipick .ipfam{font-size:8px;letter-spacing:1px;color:#c8a860;margin-top:3px;}
+    .ipick button{font-family:inherit;font-size:8px;letter-spacing:0;
+        text-align:left;padding:3px 5px;background:rgba(50,40,24,0.5);
+        border:2px solid #4a3a20;color:#c8bb98;cursor:pointer;}
+    .ipick button:hover{border-color:var(--gold);color:#f0d890;}
+    .ipick button i{float:right;font-style:normal;color:#8a7f66;}
+    #dbgaim{position:absolute;right:10px;top:10px;width:392px;
+        background:rgba(18,16,11,0.93);border:3px solid var(--wood);
+        display:none;pointer-events:auto;font-size:9px;}
+    .dbghead{display:flex;align-items:center;background:rgba(60,44,22,0.75);
+        padding:5px 7px;border-bottom:2px solid var(--wood);
+        letter-spacing:1px;color:#f0d890;}
+    .dbghead .ihint{margin-left:auto;}
+    .dbgrow{display:flex;gap:3px;padding:5px 7px;align-items:center;flex-wrap:wrap;}
+    .dbgtab{font-family:inherit;font-size:8px;letter-spacing:1px;padding:4px 6px;
+        background:rgba(50,40,24,0.5);border:2px solid #4a3a20;color:#8a7f66;
+        cursor:pointer;}
+    .dbgtab.on{background:rgba(80,62,28,0.6);border-color:var(--gold);color:#f0d890;}
+    .dbgck{font-family:inherit;font-size:8px;line-height:1;width:14px;height:14px;
+        padding:0;background:rgba(50,40,24,0.5);border:2px solid #4a3a20;
+        color:#f0d890;cursor:pointer;flex:none;}
+    .dbgck.on{border-color:var(--gold);background:rgba(80,62,28,0.6);}
+    .dbgsl{display:flex;align-items:center;gap:6px;padding:2px 7px;}
+    .dbgsl label{width:62px;color:#c8a860;font-size:8px;letter-spacing:0;}
+    .dbgpm{font-family:inherit;font-size:10px;line-height:1;width:16px;height:16px;
+        padding:0;background:rgba(50,40,24,0.5);border:2px solid #4a3a20;
+        color:#f0d890;cursor:pointer;flex:none;}
+    .dbgpm:hover{border-color:var(--gold);}
+    .dbgsl input{flex:1;height:12px;}
+    .dbgsl span{width:52px;text-align:right;color:#f0e0b0;font-size:9px;}
+    .dbgnote{padding:3px 7px 6px;color:#7a6a48;font-size:8px;line-height:1.5;}
+    #dbgout{width:calc(100% - 14px);margin:0 7px 7px;height:132px;resize:none;
+        background:#120f0a;border:2px solid #4a3a20;color:#c8bb98;
+        font-family:inherit;font-size:8px;line-height:1.4;}
+    #dbgok{color:var(--gold);font-size:8px;margin-left:6px;}
+    #itrade{margin-left:10px;color:#f0d890;border-color:var(--wood);
+        background:rgba(70,52,24,0.7);display:none;}
+    #zdbg{position:absolute;right:10px;top:10px;width:392px;
+        background:rgba(18,16,11,0.93);border:3px solid var(--wood);
+        display:none;pointer-events:auto;font-size:9px;}
+    #zout{width:calc(100% - 14px);margin:0 7px 7px;height:78px;resize:none;
+        background:#120f0a;border:2px solid #4a3a20;color:#c8bb98;
+        font-family:inherit;font-size:8px;line-height:1.4;}
+    #zok{color:var(--gold);font-size:8px;margin-left:6px;}
+    #mappan{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+        background:rgba(18,16,11,0.95);border:3px solid var(--wood);
+        display:none;pointer-events:auto;}
+    #mapcv{display:block;image-rendering:pixelated;margin:8px;
+        background:#0a0c10;border:2px solid #4a3a20;}
+    #planpan{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+        background:rgba(18,16,11,0.96);border:3px solid var(--wood);
+        display:none;pointer-events:auto;}
+    #plancv{display:block;image-rendering:pixelated;margin:8px;
+        background:#12100b;border:2px solid #4a3a20;}
+    #planbuild{display:none;max-height:30vh;overflow-y:auto;padding:0 8px 8px;
+        scrollbar-width:thin;scrollbar-color:#6a5a34 transparent;}
+    #planbuild::-webkit-scrollbar{width:6px;}
+    #planbuild::-webkit-scrollbar-thumb{background:#6a5a34;}
+    .plhd{font-size:8px;letter-spacing:1px;color:#c8a860;padding:5px 2px;
+        border-bottom:2px solid #3a2e1c;margin-bottom:4px;}
+    .plrow{display:flex;align-items:center;gap:5px;padding:3px 2px;
+        border-bottom:1px solid #2a241a;}
+    .plrow.plno{opacity:0.45;}
+    .plrow.plok .pln{color:#8ad0a0;}
+    .pln{flex:1;font-size:9px;color:#e8d8b0;white-space:nowrap;
+        overflow:hidden;text-overflow:ellipsis;}
+    .plc{font-size:8px;color:#7a6a48;white-space:nowrap;}
+    .plb{font-family:inherit;font-weight:bold;font-size:8px;padding:3px 6px;
+        background:rgba(60,44,22,0.7);border:2px solid #5a4326;color:#f0d890;
+        cursor:pointer;}
+    .plb:hover{border-color:#c8a860;}
+    .plb.plgris{color:#6d6350;border-color:#3a2e1c;cursor:default;}
+    #trpan{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+        width:860px;background:rgba(20,17,11,0.94);border:3px solid var(--wood);
+        display:none;pointer-events:auto;}
+    .tpage{padding:0;}
+    .statlist{display:flex;flex-direction:column;gap:7px;width:196px;}
+    .statbox{display:flex;flex-direction:column;gap:3px;padding:6px 7px;
+        border:2px solid #4a3a20;background:rgba(50,40,24,0.4);cursor:default;}
+    .statbox.on{border-color:var(--gold);background:rgba(80,62,28,0.55);}
+    .statrow{display:flex;flex-direction:column;gap:3px;}
+    .statsub{font-size:8px;color:#7a6a48;line-height:1.4;}
+    .stathint{font-size:8px;color:#6a5c40;margin-top:4px;}
+    #isec .statlist{width:250px;}
+    .statname{display:flex;justify-content:space-between;font-size:9px;
+        letter-spacing:1px;color:#e8d0a0;}
+    .statnum{color:#c8a860;}
+    .statbar{position:relative;height:9px;background:#1a140c;
+        border:2px solid var(--wood);}
+    .statbar>div{position:absolute;left:0;top:0;bottom:0;
+        background:linear-gradient(#e0c060,#a07820);}
+    .statdesc{font-size:8px;color:#8a7f66;line-height:1.7;}
+    .statdesc b{color:#c8a860;}
+    .statdesc p{margin-bottom:7px;}
+    .trhead{display:flex;gap:2px;background:rgba(60,44,22,0.75);padding:8px 10px;
+        border-bottom:2px solid var(--wood);align-items:center;}
+    .trtitle{font-size:9px;letter-spacing:1px;color:#f0d890;}
+    .trbody{display:flex;padding:12px;}
+    .trside{flex:1;display:flex;flex-direction:column;gap:7px;padding:0 12px;
+        min-width:0;}
+    .trside+.trside{border-left:2px solid #4a3a20;}
+    .trwho{font-size:9px;letter-spacing:1px;color:#e8c878;}
+    .trbody canvas{image-rendering:pixelated;background:rgba(40,32,20,0.55);
+        border:2px solid #4a3a20;}
+    .trnote{font-size:8px;color:#7a6a48;line-height:1.6;}
+    /* Ce qu'il en est de lui : un des votres se deshabille, un etranger non,
+       et la phrase le dit plutot que de laisser les cases muettes. */
+    .trstate{font-size:8px;color:#8a7f66;line-height:1.6;max-width:150px;}
+    #trgo{font-family:inherit;font-weight:bold;font-size:9px;letter-spacing:1px;
+        padding:5px 12px;background:rgba(60,44,22,0.85);
+        border:2px solid var(--gold);color:#f0d890;cursor:pointer;white-space:nowrap;}
+    #trgo:hover{border-color:#e8c878;color:#fff0c0;}
+    #trgo:disabled{opacity:0.34;cursor:default;border-color:var(--wood);color:#9a8e74;}
+    /* on ne rend cliquable que ce qui l'est : les emplacements du cote droit
+       quand c'est un des votres */
+    #trpan .slot.trhot{cursor:pointer;}
+    #trpan .slot.trhot:hover{border-color:#c8a860;}
+    #placename{font-size:15px;color:#f0e0b0;letter-spacing:2px;
+        text-shadow:0 2px 0 #2a2016,0 0 10px rgba(0,0,0,0.8);
+        transition:opacity 0.4s;opacity:0;}
+    #invpan{position:absolute;right:10px;bottom:10px;width:150px;display:none;
+        background:rgba(18,16,11,0.88);border:3px solid var(--wood);pointer-events:auto;}
+    #invpan .ititle{font-size:9px;letter-spacing:1px;color:#c8a860;
+        background:rgba(60,44,22,0.75);padding:4px 6px;border-bottom:2px solid var(--wood);}
+    #invpan .ibody{height:86px;padding:6px;font-size:9px;color:#8a7f66;
+        display:flex;align-items:center;justify-content:center;}
+    /* ---- FENETRE DE DIALOGUE ----
+       La conversation quittait le journal du coin bas-droit, ou elle se
+       melait aux nouvelles du monde et se lisait mal. Elle a maintenant sa
+       fenetre au centre, les deux interlocuteurs en pied de part et d'autre :
+       le joueur a gauche, celui a qui il parle a droite. */
+    #dtabs{display:flex;gap:0;border-bottom:2px solid var(--wood);
+        background:rgba(30,24,14,0.7);}
+    .dtab{flex:1;font-family:inherit;font-weight:bold;font-size:9px;
+        letter-spacing:2px;padding:6px 4px;background:none;border:none;
+        color:#7a6a48;cursor:pointer;border-bottom:2px solid transparent;}
+    .dtab.on{color:#f0d890;background:rgba(60,44,22,0.6);
+        border-bottom-color:#c8a860;}
+    .dtab:hover{color:#e8d8b0;}
+    /* l'echange prend la place du fil de la conversation, entre les deux
+       silhouettes qui restent en vue */
+    /* ce qu'il porte sur lui, sous les deux sacs, et le bouton qui conclut */
+    .dtworn{display:flex;gap:3px;align-items:center;margin-top:6px;flex-wrap:wrap;}
+    .dtwl{font-size:8px;color:#8a7f66;letter-spacing:1px;margin-right:4px;}
+    .slot.dtw{width:26px;height:26px;}
+    .dtdeal{margin-top:7px;text-align:center;}
+    .dtdeal button{font-family:inherit;font-size:9px;letter-spacing:1px;
+        padding:5px 14px;color:#f0d890;background:rgba(60,44,22,0.75);
+        border:2px solid var(--wood);cursor:pointer;}
+    .dtdeal button:hover:enabled{background:rgba(90,70,40,0.8);}
+    .dtdeal button:disabled{color:#6a5c40;border-color:#4a3c22;cursor:default;}
+    #dtrade{display:none;padding:8px 9px;min-height:132px;max-height:34vh;
+        overflow-y:auto;scrollbar-width:thin;scrollbar-color:#6a5a34 transparent;}
+    #dtrade::-webkit-scrollbar{width:6px;}
+    #dtrade::-webkit-scrollbar-thumb{background:#6a5a34;}
+    .dtcols{display:flex;gap:9px;align-items:flex-start;}
+    .dtcol{flex:1;min-width:0;}
+    .dthd{font-size:8px;letter-spacing:1px;color:#c8a860;margin-bottom:4px;
+        white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .dthd span{color:#7a6a48;}
+    /* la grille commune, resserree pour tenir dans la colonne du dialogue */
+    .dtbag{--gc:30px;gap:4px;}
+    .dtnote{font-size:8px;color:#7a6a48;letter-spacing:0;margin-top:6px;
+        line-height:1.5;}
+    #dpan{position:absolute;left:50%;top:48%;transform:translate(-50%,-50%);
+        width:min(620px,92vw);box-sizing:border-box;display:none;
+        background:rgba(20,17,11,0.95);border:3px solid var(--wood);
+        pointer-events:auto;flex-direction:column;}
+    #dhead{display:flex;align-items:baseline;gap:8px;padding:6px 9px;
+        background:rgba(60,44,22,0.75);border-bottom:2px solid var(--wood);}
+    #dwho{font-size:12px;letter-spacing:2px;color:#f0e0b0;}
+    #drole{font-size:8px;letter-spacing:1px;color:#a8956a;}
+    #dclose{margin-left:auto;font-size:8px;color:#7a6a48;letter-spacing:1px;}
+    #dmid{display:flex;align-items:stretch;gap:0;}
+    .dside{width:104px;flex:none;display:flex;align-items:flex-end;
+        justify-content:center;padding:8px 4px;background:rgba(12,10,7,0.5);}
+    .dside canvas{width:88px;height:112px;image-rendering:pixelated;}
+    #dyouside{border-left:2px solid var(--wood);}
+    #dmeside{border-right:2px solid var(--wood);}
+    #dcore{flex:1;min-width:0;display:flex;flex-direction:column;}
+    #dlog{padding:9px 11px;min-height:132px;max-height:34vh;overflow-y:auto;
+        font-size:11px;line-height:1.65;color:#d8cba8;
+        scrollbar-width:thin;scrollbar-color:#6a5a34 transparent;}
+    #dlog::-webkit-scrollbar{width:6px;}
+    #dlog::-webkit-scrollbar-thumb{background:#6a5a34;}
+    .dline{margin-bottom:5px;}
+    .dline.dsay{color:#e8e0cc;}
+    .dline.dme{color:#9fc4d8;}
+    .dline.dnote{color:#8a7f66;font-size:9px;letter-spacing:1px;}
+    #dopts{border-top:2px solid var(--wood);background:rgba(40,30,16,0.55);
+        padding:5px 7px;display:flex;flex-direction:column;gap:3px;}
+    .dopt{font-family:inherit;font-weight:bold;text-align:left;font-size:10px;
+        letter-spacing:0;color:#9fc4d8;background:none;border:2px solid transparent;
+        padding:4px 6px;cursor:pointer;}
+    .dopt:hover{border-color:var(--wood);background:rgba(58,46,26,0.7);
+        color:#f0d890;}
+    .dopt b{color:#f0d890;margin-right:6px;}
+    #dfoot{font-size:8px;color:#6a5c40;letter-spacing:1px;padding:4px 9px;
+        border-top:2px solid var(--wood);}
+    #jhead{font-size:9px;letter-spacing:1px;color:#c8a860;background:rgba(60,44,22,0.75);
+        padding:4px 6px;display:flex;justify-content:space-between;align-items:center;
+        border-bottom:2px solid var(--wood);}
+    #jhead span{color:#9a8a68;font-size:9px;letter-spacing:0;}
+    #jlog{height:96px;overflow-y:auto;padding:4px 6px;font-size:9px;line-height:1.55;
+        color:#d8cba8;scrollbar-width:thin;scrollbar-color:#6a5a34 transparent;}
+    #jlog::-webkit-scrollbar{width:6px;}
+    #jlog::-webkit-scrollbar-thumb{background:#6a5a34;}
+    .jline{margin-bottom:1px;}
+    .jline i{color:#7f7050;font-style:normal;margin-right:5px;}
+    .jline.jday{color:#e8c878;}
+    .jline.jsay{color:#e8e0cc;}
+    #tc{position:absolute;top:14px;left:50%;transform:translateX(-50%);text-align:center;}
+
+    #screen{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+        background:rgba(8,6,4,.82);pointer-events:auto;}
+    #panel{background:var(--parch);color:var(--ink);border:5px solid var(--wood);
+        box-shadow:8px 8px 0 rgba(0,0,0,.6);padding:26px 32px;max-width:580px;text-align:center;
+        transform:scale(var(--us,1));transform-origin:center center;}
+    #panel h1{font-size:26px;letter-spacing:3px;margin-bottom:4px;text-transform:uppercase;}
+    #panel .sub{font-size:12px;color:#7a5c2e;margin-bottom:14px;}
+    #panel p{font-size:13px;line-height:1.5;margin-bottom:9px;font-weight:normal;text-align:left;}
+    #panel.intro{max-width:560px;text-align:left;}
+    #panel.intro h1{text-align:center;}
+    #panel.intro .role{font-size:13px;color:#7a5c2e;text-align:center;font-style:italic;margin-bottom:14px;}
+    #panel.intro .por{display:block;margin:0 auto 6px;image-rendering:pixelated;image-rendering:crisp-edges;
+        border:3px solid var(--wood);background:rgba(20,17,11,0.25);padding:6px;}
+    #panel.intro h2{font-size:11px;letter-spacing:2px;color:var(--wood);margin:14px 0 3px;text-transform:uppercase;}
+    #panel.intro .obj{background:var(--wood);color:var(--parch);padding:9px 11px;margin-top:4px;font-size:13px;line-height:1.45;}
+    #panel.intro .go{margin-top:20px;text-align:center;}
+    .introrev{opacity:0;transform:translateY(8px);animation:introUp .5s ease forwards;}
+    @keyframes introUp{to{opacity:1;transform:translateY(0);}}
+    #panel .big{font-family:inherit;font-weight:bold;font-size:17px;background:var(--wood);
+        color:var(--parch);border:none;box-shadow:4px 4px 0 rgba(0,0,0,.4);
+        padding:12px 30px;cursor:pointer;margin-top:8px;letter-spacing:2px;}
+    #panel .big:hover{background:#6f5430;}
+    #panel.help{max-width:680px;max-height:88vh;display:flex;flex-direction:column;}
+    #panel .hscroll{overflow-y:auto;text-align:left;padding-right:8px;}
+    #panel h2{font-size:15px;color:var(--wood);margin:14px 0 6px;letter-spacing:1px;text-transform:uppercase;}
+    #panel table{width:100%;border-collapse:collapse;font-size:10px;margin-bottom:4px;}
+    #panel th{background:var(--wood);color:var(--parch);padding:3px 5px;text-align:left;font-size:9px;text-transform:uppercase;}
+    #panel td{padding:3px 5px;border-bottom:1px solid #d8c8a8;vertical-align:top;line-height:1.35;}
+    #panel td.nm{font-weight:bold;color:#5a3a1a;white-space:nowrap;text-transform:capitalize;}
+    #panel td.ev{color:#8a5a1a;font-style:italic;}
+    #panel .bo{color:#a02828;font-size:8px;font-weight:bold;}
+    #panel tr:nth-child(even) td{background:rgba(120,90,40,0.06);}
+    #panel td.nm{white-space:normal;}
+    #panel p.note{font-size:12px;color:#7a5c2e;font-style:italic;}
+    #panel.lib{max-width:760px;}
+    .libwrap{display:flex;gap:12px;min-height:0;flex:1;text-align:left;}
+    .libnavcol{display:flex;flex-direction:column;gap:3px;flex:0 0 158px;}
+    .libnav{font-family:inherit;font-weight:bold;font-size:11px;text-align:left;
+        background:none;border:2px solid var(--wood);color:#6a4c22;
+        padding:6px 8px;cursor:pointer;letter-spacing:1px;text-transform:uppercase;}
+    .libnav:hover{background:rgba(120,90,40,0.12);}
+    .libnav.on{background:var(--wood);color:var(--parch);}
+    .libbody{flex:1;min-width:0;border-left:2px solid #d8c8a8;padding-left:12px;}
+    .libbody h2{margin-top:0;}
+    #stats{font-size:13px;margin:10px 0;line-height:1.7;}
+    .kk{display:inline-block;background:var(--ink);color:var(--parch);padding:0 5px;margin:0 2px;}
+

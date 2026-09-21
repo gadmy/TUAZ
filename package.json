@@ -1,0 +1,13 @@
+{
+  "name": "tuaz",
+  "version": "31.0.0",
+  "description": "TUAZ - TeamUpAgainstZombi : jeu web vanilla JS, sans outil de construction",
+  "private": true,
+  "scripts": {
+    "verif": "node tools/verif.js",
+    "check": "node -e \"require('fs').readdirSync('js').forEach(f=>require('child_process').execSync('node --check js/'+f))\" && echo \"js/ : syntaxe OK\""
+  },
+  "devDependencies": {
+    "playwright": "^1.63.0"
+  }
+}
